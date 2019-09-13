@@ -14,10 +14,11 @@ from easysnmp import Session
 def str_escape(string):
     if string is None:
         return None
-    if " " in string or "," in string or "." in string:
+    if " " in string or "," in string or "=" in string:
         ret = string.replace(" ", "\\ ")
         ret = ret.replace(",", "\\,")
-        ret = '"{}"'.format(ret)
+        ret = ret.replace("=", "\\=")
+        ret = '{}'.format(ret)
     else:
         ret = string
     return ret
@@ -41,9 +42,12 @@ def get_basic_info(sess):
         },
         'fields': {
             'firmware_version':
-            str_escape(sess.get('MIKROTIK-MIB::mtxrFirmwareVersion.0').value),
+            "\"{}\"".format(
+                str_escape(
+                    sess.get('MIKROTIK-MIB::mtxrFirmwareVersion.0').value)),
             'version':
-            str_escape(sess.get('MIKROTIK-MIB::mtxrLicVersion.0').value),
+            "\"{}\"".format(
+                str_escape(sess.get('MIKROTIK-MIB::mtxrLicVersion.0').value)),
             'dhcp_leases':
             sess.get('MIKROTIK-MIB::mtxrDHCPLeaseCount.0').value,
             'sysUpTime':
@@ -210,8 +214,7 @@ def get_wireless(sess):
                 'macaddress': mac,
                 'address': dhcpclients.get(mac, None),
                 'ssid_id': _convert_oid_index_to_ssid(clientindex),
-                'ssid':
-                ssids[_convert_oid_index_to_ssid(clientindex)],
+                'ssid': ssids[_convert_oid_index_to_ssid(clientindex)],
             },
             'fields': {
                 'txstrength': txstr[clientindex],
