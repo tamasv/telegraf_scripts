@@ -56,4 +56,34 @@ urbackup,client_version_string="2.3.4",file_ok=False,id=1,image_ok=False,ip=None
 
 ```
 
+## mikrotik_stats.py
+
+### Deps
+```
+
+pip install easysnmp
+
+```
+
+### Configuration
+```toml
+
+[[inputs.exec]]
+ commands=["python3 /opt/telegraf/scripts/mikrotik_stats.py -v2 -c MYCOMMUNITY 1.1.1.1"]
+ timeout = "30s"
+data_format = "influx"
+
+```
+
+### Example
+```
+root@myserver:/opt/telegraf/scripts# ./mikrotik_stats.py -v 2 -c MYCOMMUNITY 1.1.1.1
+mikrotik_basic,description="RouterOS\ RB750Gr3",name="rtr.x.x.com",objectid=".1.3.6.1.4.1.14988.1",location="Location",contact="CONTACT",serial=SERIAL version="6.44.3",dhcp_leases=14,sysUpTime=14918600
+mikrotik_interfaces,ifindex=1,description=ether1,interface_type=6,speed=1000000000,mtu=1500 adminstatus=1,operstatus=1,bytes_in=4254232925,ucast_pkts_in=16348106,nonucast_pkts_in=0,discards_in=0,errors_in=0,unknown_protos_in=0,bytes_out=1825412076,ucast_pkts_out=16318409,nonucast_pkts_out=0,discards_out=0,errors_out=0
+mikrotik_interfaces,ifindex=2,description=ether2,interface_type=6,speed=1000000000,mtu=1500 adminstatus=1,operstatus=1,bytes_in=3356493072,ucast_pkts_in=89198069,nonucast_pkts_in=0,discards_in=0,errors_in=0,unknown_protos_in=0,bytes_out=1399817751,ucast_pkts_out=29292593,nonucast_pkts_out=0,discards_out=0,errors_out=0
+mikrotik_interfaces,ifindex=3,description=ether3,interface_type=6,speed=1000000000,mtu=1500 adminstatus=1,operstatus=1,bytes_in=1803073038,ucast_pkts_in=80540481,nonucast_pkts_in=0,discards_in=0,errors_in=0,unknown_protos_in=0,bytes_out=3777668902,ucast_pkts_out=18990071,nonucast_pkts_out=0,discards_out=0,errors_out=0
+mikrotik_interfaces,ifindex=4,description=ether4,interface_type=6,speed=1000000000,mtu=1500 adminstatus=1,operstatus=1,bytes_in=1082226760,ucast_pkts_in=45932619,nonucast_pkts_in=0,discards_in=0,errors_in=0,unknown_protos_in=0,bytes_out=3777352309,ucast_pkts_out=119243960,nonucast_pkts_out=0,discards_out=0,errors_out=0
+
+
+```
 
