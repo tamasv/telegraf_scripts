@@ -9,6 +9,14 @@ import argparse
 from easysnmp import Session
 
 
+def _parse_int(number, default=0):
+    try:
+        ret = int(number)
+    except ValueError:
+        return default
+    return ret
+
+
 def str_escape(string):
     if string is None:
         return None
@@ -316,7 +324,7 @@ def get_env(sess):
                 'sensor_id': sensor_id,
             },
             'fields': {
-                'value': fan_sensor,
+                'value': _parse_int(fan_sensor, -1),
             }
         }
         env.append(ret)
