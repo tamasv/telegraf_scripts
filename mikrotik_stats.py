@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # TODO:
-# - fetch capsman related stuff
 # - Fetch ipnei
-# - Fetch env values
 #
 #
 import argparse
@@ -69,30 +67,35 @@ def get_interfaces(sess):
         for v in sess.walk('IF-MIB::ifAdminStatus')
     }
     ifoperstatus = {v.oid_index: v for v in sess.walk('IF-MIB::ifOperStatus')}
-    ifinoctets = {v.oid_index: v for v in sess.walk('IF-MIB::ifInOctets')}
+    ifinoctets = {v.oid_index: v for v in sess.walk('IF-MIB::ifHCInOctets')}
     ifinucastpkts = {
         v.oid_index: v
-        for v in sess.walk('IF-MIB::ifInUcastPkts')
+        for v in sess.walk('IF-MIB::ifHCInUcastPkts')
     }
-    ifinnucastpkts = {
+    ifinmcastpkts = {
         v.oid_index: v
-        for v in sess.walk('IF-MIB::ifInNUcastPkts')
+        for v in sess.walk('IF-MIB::ifHCInMulticastPkts')
     }
-    ifindiscards = {v.oid_index: v for v in sess.walk('IF-MIB::ifInDiscards')}
-    ifinerrors = {v.oid_index: v for v in sess.walk('IF-MIB::ifInErrors')}
-    ifinunknownprotos = {
+    ifinbcastpkts = {
         v.oid_index: v
-        for v in sess.walk('ifInUnknownProtos')
+        for v in sess.walk('IF-MIB::ifHCInBroadcastPkts')
     }
-    ifoutoctets = {v.oid_index: v for v in sess.walk('IF-MIB::ifOutOctets')}
+    ifoutoctets = {v.oid_index: v for v in sess.walk('IF-MIB::ifHCOutOctets')}
     ifoutucastpkts = {
         v.oid_index: v
-        for v in sess.walk('IF-MIB::ifOutUcastPkts')
+        for v in sess.walk('IF-MIB::ifHCOutUcastPkts')
     }
-    ifoutnucastpkts = {
+    ifoutmcastpkts = {
         v.oid_index: v
-        for v in sess.walk('IF-MIB::ifOutNUcastPkts')
+        for v in sess.walk('IF-MIB::ifHCOutMulticastPkts')
     }
+    ifoutbcastpkts = {
+        v.oid_index: v
+        for v in sess.walk('IF-MIB::ifHCOutBroadcastPkts')
+    }
+
+    ifindiscards = {v.oid_index: v for v in sess.walk('IF-MIB::ifInDiscards')}
+    ifinerrors = {v.oid_index: v for v in sess.walk('IF-MIB::ifInErrors')}
     ifoutdiscards = {
         v.oid_index: v
         for v in sess.walk('IF-MIB::ifOutDiscards')
@@ -113,13 +116,14 @@ def get_interfaces(sess):
                 'operstatus': ifoperstatus[ifindex].value,
                 'bytes_in': ifinoctets[ifindex].value,
                 'ucast_pkts_in': ifinucastpkts[ifindex].value,
-                'nonucast_pkts_in': ifinnucastpkts[ifindex].value,
-                'discards_in': ifindiscards[ifindex].value,
-                'errors_in': ifinerrors[ifindex].value,
-                'unknown_protos_in': ifinunknownprotos[ifindex].value,
+                'multicast_pkts_in': ifinmcastpkts[ifindex].value,
+                'broadcast_pkts_in': ifinbcastpkts[ifindex].value,
                 'bytes_out': ifoutoctets[ifindex].value,
                 'ucast_pkts_out': ifoutucastpkts[ifindex].value,
-                'nonucast_pkts_out': ifoutnucastpkts[ifindex].value,
+                'multicastcast_pkts_out': ifoutmcastpkts[ifindex].value,
+                'broadcast_pkts_out': ifoutbcastpkts[ifindex].value,
+                'discards_in': ifindiscards[ifindex].value,
+                'errors_in': ifinerrors[ifindex].value,
                 'discards_out': ifoutdiscards[ifindex].value,
                 'errors_out': ifouterrors[ifindex].value,
             }
@@ -244,6 +248,95 @@ def get_wireless(sess):
     return (clients_ret, ssid_ret)
 
 
+def get_env(sess):
+    env = []
+    cputemps = {
+        int(x.oid_index): float(x.value)
+        for x in sess.walk("MIKROTIK-MIB::mtxrHlCpuTemperature")
+    }
+    for cpu_id, cputemp in cputemps.items():
+        ret = {
+            'tags': {
+                'cpu_id': cpu_id,
+            },
+            'fields': {
+                'temperature': float(cputemp)/10,
+            }
+        }
+        env.append(ret)
+    boardtemps = {
+        int(x.oid_index): float(x.value)
+        for x in sess.walk("MIKROTIK-MIB::mtxrHlBoardTemperature")
+    }
+    for board_id, boardtemp in boardtemps.items():
+        ret = {
+            'tags': {
+                'board_sensor_id': board_id,
+            },
+            'fields': {
+                'temperature': float(boardtemp)/10,
+            }
+        }
+        env.append(ret)
+    temp_sensors = {
+        int(x.oid_index): float(x.value)
+        for x in sess.walk("MIKROTIK-MIB::mtxrHlTemperature")
+    }
+    for sensor_id, temp_sensor in temp_sensors.items():
+        ret = {
+            'tags': {
+                'sensor_id': sensor_id,
+            },
+            'fields': {
+                'temperature': float(temp_sensor)/10,
+            }
+        }
+        env.append(ret)
+    voltage_sensors = {
+        int(x.oid_index): float(x.value)
+        for x in sess.walk("MIKROTIK-MIB::mtxrHlVoltage")
+    }
+    for sensor_id, voltage_sensor in voltage_sensors.items():
+        ret = {
+            'tags': {
+                'sensor_id': sensor_id,
+            },
+            'fields': {
+                'voltage': float(voltage_sensor)/10,
+            }
+        }
+        env.append(ret)
+    fan_sensors = {
+        int(x.oid_index): x.value
+        for x in sess.walk("MIKROTIK-MIB::mtxrHlActiveFan")
+    }
+    for sensor_id, fan_sensor in fan_sensors.items():
+        ret = {
+            'tags': {
+                'sensor_id': sensor_id,
+            },
+            'fields': {
+                'value': fan_sensor,
+            }
+        }
+        env.append(ret)
+    cpu_freqs = {
+        int(x.oid_index): x.value
+        for x in sess.walk("MIKROTIK-MIB::mtxrHlProcessorFrequency")
+    }
+    for cpu_id, cpu_freq in cpu_freqs.items():
+        ret = {
+            'tags': {
+                'cpu': cpu_id,
+            },
+            'fields': {
+                'freq': cpu_freq,
+            }
+        }
+        env.append(ret)
+    return env
+
+
 def print_influx_lines(stats):
     for measurement, stat_a in stats.items():
         measurement = "mikrotik_{}".format(measurement)
@@ -284,6 +377,7 @@ def main():
     stats['interfaces'] = get_interfaces(snmp_sess)
     stats['wireless_clients'], stats['wireless_basic'] = get_wireless(
         snmp_sess)
+    stats['env'] = get_env(snmp_sess)
     print_influx_lines(stats)
 
 
