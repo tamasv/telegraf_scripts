@@ -9,13 +9,13 @@ import argparse
 from easysnmp import Session
 
 
-
 def parse_int(string):
     try:
         ret = int(string)
     except ValueError:
         ret = -1
     return ret
+
 
 def str_escape(string):
     if string is None:
@@ -345,6 +345,67 @@ def get_env(sess, basic_tags):
             },
             'fields': {
                 'freq': cpu_freq,
+            }
+        }
+        ret['tags'].update(basic_tags)
+        env.append(ret)
+    cpu_utils = {
+        int(x.oid_index): float(x.value)
+        for x in sess.walk(".1.3.6.1.2.1.25.3.3.1.2")
+    }
+    for cpu_id, cpu_util in cpu_utils.items():
+        ret = {
+            'tags': {
+                'cpu': cpu_id,
+            },
+            'fields': {
+                'util': cpu_util,
+            }
+        }
+        ret['tags'].update(basic_tags)
+        env.append(ret)
+    mem_types = {
+        int(x.oid_index): str(x.value)
+        for x in sess.walk("HOST-RESOURCES-MIB::hrStorageType")
+    }
+    mem_names = {
+        int(x.oid_index): str(x.value)
+        for x in sess.walk("HOST-RESOURCES-MIB::hrStorageDescr")
+    }
+    mem_units = {
+        int(x.oid_index): int(x.value)
+        for x in sess.walk("HOST-RESOURCES-MIB::hrStorageAllocationUnits")
+    }
+    mem_size = {
+        int(x.oid_index): int(x.value)
+        for x in sess.walk("HOST-RESOURCES-MIB::hrStorageSize")
+    }
+    mem_used = {
+        int(x.oid_index): int(x.value)
+        for x in sess.walk("HOST-RESOURCES-MIB::hrStorageUsed")
+    }
+    mem_alloc_failures = {
+        int(x.oid_index): float(x.value)
+        for x in sess.walk("HOST-RESOURCES-MIB::hrStorageAllocationFailures")
+    }
+    for mem_id, mem_name in mem_names.items():
+        ret = {
+            'tags': {
+                'memory_id': mem_id,
+                'memory_name': str_escape(mem_names[mem_id]),
+                'memory_units': mem_units[mem_id],
+                'memory_type': str_escape(mem_types[mem_id])
+            },
+            'fields': {
+                'size':
+                mem_size[mem_id] * mem_units[mem_id],
+                'used':
+                mem_used[mem_id] * mem_units[mem_id],
+                'used_percent':
+                float(mem_used[mem_id] * mem_units[mem_id]) /
+                float(mem_size[mem_id] * mem_units[mem_id]),
+                'allocation_failures':
+                mem_alloc_failures[mem_id]
             }
         }
         ret['tags'].update(basic_tags)
