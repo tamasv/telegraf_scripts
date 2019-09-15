@@ -367,18 +367,52 @@ def main():
                         "--version",
                         type=int,
                         help="SNMP protocol version",
-                        choices=[1, 2],
+                        choices=[2, 3],
                         required=True)
-    parser.add_argument("-c",
-                        "--community",
+    parser.add_argument("-c", "--community", type=str, help="Community string")
+    parser.add_argument("-s",
+                        "--security",
                         type=str,
-                        help="Community string",
-                        required=True)
+                        help="Security v3",
+                        choices=[
+                            'no_auth_or_privacy', 'auth_without_privacy',
+                            'auth_with_privacy'
+                        ])
+    parser.add_argument("-u", "--username", type=str, help="Username v3")
+    parser.add_argument("-pp",
+                        "--privacy_password",
+                        type=str,
+                        help="Privacy password v3")
+    parser.add_argument("-ap",
+                        "--auth_password",
+                        type=str,
+                        help="Auth password v3")
+    parser.add_argument("-aproto",
+                        "--auth_protocol",
+                        type=str,
+                        help="Auth password v3",
+                        choices=['DM5', 'SHA'])
+    parser.add_argument("-pproto",
+                        "--privacy_protocol",
+                        type=str,
+                        help="Auth password v3",
+                        choices=['DES', 'AES'])
     args = parser.parse_args()
-    snmp_sess = Session(hostname=args.ip,
-                        community=args.community,
-                        version=args.version,
-                        use_sprint_value=False)
+    if args.version == 2:
+        snmp_sess = Session(hostname=args.ip,
+                            community=args.community,
+                            version=args.version,
+                            use_sprint_value=False)
+    else:
+        snmp_sess = Session(hostname=args.ip,
+                            version=args.version,
+                            auth_protocol=args.auth_protocol,
+                            auth_password=args.auth_password,
+                            security_username=args.username,
+                            privacy_protocol=args.privacy_protocol,
+                            privacy_password=args.privacy_password,
+                            security_level=args.security,
+                            use_sprint_value=False)
     stats = {}
     stats['basic'] = [get_basic_info(snmp_sess)]
     stats['interfaces'] = get_interfaces(snmp_sess, stats['basic'][0]['tags'])
