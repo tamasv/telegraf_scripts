@@ -9,14 +9,6 @@ import argparse
 from easysnmp import Session
 
 
-def _parse_int(number, default=0):
-    try:
-        ret = int(number)
-    except ValueError:
-        return default
-    return ret
-
-
 def str_escape(string):
     if string is None:
         return None
@@ -37,8 +29,6 @@ def get_basic_info(sess):
             str_escape(sess.get('sysDescr.0').value),
             'name':
             str_escape(sess.get('sysName.0').value),
-            'objectid':
-            str_escape(sess.get('sysObjectID.0').value),
             'location':
             str_escape(sess.get('sysLocation.0').value),
             'contact':
@@ -63,7 +53,7 @@ def get_basic_info(sess):
     return ret
 
 
-def get_interfaces(sess):
+def get_interfaces(sess, basic_tags):
     interfaces = []
     ifindexes = sess.walk('IF-MIB::ifIndex')
     iftypes = {v.oid_index: v for v in sess.walk('IF-MIB::ifType')}
@@ -136,6 +126,7 @@ def get_interfaces(sess):
                 'errors_out': ifouterrors[ifindex].value,
             }
         }
+        iface['tags'].update(basic_tags)
         interfaces.append(iface)
     return interfaces
 
@@ -161,7 +152,7 @@ def _convert_oid_index_to_ssid(oid_index):
     return ssid
 
 
-def get_wireless(sess):
+def get_wireless(sess, basic_tags):
     clients = sess.walk('MIKROTIK-MIB::mtxrWlCMRtabAddr')
     dhcpclients = {
         _convert_octetstr_to_mac(x.value):
@@ -240,6 +231,7 @@ def get_wireless(sess):
                 'rxrate': rxrate[clientindex],
             }
         }
+        ret['tags'].update(basic_tags)
         clients_ret.append(ret)
     for ssid_id, ssid_name in ssids.items():
         ret = {
@@ -252,11 +244,12 @@ def get_wireless(sess):
                 'authclientcount': authclients.get(ssid_id, 0),
             }
         }
+        ret['tags'].update(basic_tags)
         ssid_ret.append(ret)
     return (clients_ret, ssid_ret)
 
 
-def get_env(sess):
+def get_env(sess, basic_tags):
     env = []
     cputemps = {
         int(x.oid_index): float(x.value)
@@ -268,9 +261,10 @@ def get_env(sess):
                 'cpu_id': cpu_id,
             },
             'fields': {
-                'temperature': float(cputemp)/10,
+                'temperature': float(cputemp) / 10,
             }
         }
+        ret['tags'].update(basic_tags)
         env.append(ret)
     boardtemps = {
         int(x.oid_index): float(x.value)
@@ -282,9 +276,10 @@ def get_env(sess):
                 'board_sensor_id': board_id,
             },
             'fields': {
-                'temperature': float(boardtemp)/10,
+                'temperature': float(boardtemp) / 10,
             }
         }
+        ret['tags'].update(basic_tags)
         env.append(ret)
     temp_sensors = {
         int(x.oid_index): float(x.value)
@@ -296,9 +291,10 @@ def get_env(sess):
                 'sensor_id': sensor_id,
             },
             'fields': {
-                'temperature': float(temp_sensor)/10,
+                'temperature': float(temp_sensor) / 10,
             }
         }
+        ret['tags'].update(basic_tags)
         env.append(ret)
     voltage_sensors = {
         int(x.oid_index): float(x.value)
@@ -310,9 +306,10 @@ def get_env(sess):
                 'sensor_id': sensor_id,
             },
             'fields': {
-                'voltage': float(voltage_sensor)/10,
+                'voltage': float(voltage_sensor) / 10,
             }
         }
+        ret['tags'].update(basic_tags)
         env.append(ret)
     fan_sensors = {
         int(x.oid_index): x.value
@@ -324,9 +321,10 @@ def get_env(sess):
                 'sensor_id': sensor_id,
             },
             'fields': {
-                'value': _parse_int(fan_sensor, -1),
+                'value': fan_sensor,
             }
         }
+        ret['tags'].update(basic_tags)
         env.append(ret)
     cpu_freqs = {
         int(x.oid_index): x.value
@@ -341,6 +339,7 @@ def get_env(sess):
                 'freq': cpu_freq,
             }
         }
+        ret['tags'].update(basic_tags)
         env.append(ret)
     return env
 
@@ -382,10 +381,10 @@ def main():
                         use_sprint_value=False)
     stats = {}
     stats['basic'] = [get_basic_info(snmp_sess)]
-    stats['interfaces'] = get_interfaces(snmp_sess)
+    stats['interfaces'] = get_interfaces(snmp_sess, stats['basic'][0]['tags'])
     stats['wireless_clients'], stats['wireless_basic'] = get_wireless(
-        snmp_sess)
-    stats['env'] = get_env(snmp_sess)
+        snmp_sess, stats['basic'][0]['tags'])
+    stats['env'] = get_env(snmp_sess, stats['basic'][0]['tags'])
     print_influx_lines(stats)
 
 
