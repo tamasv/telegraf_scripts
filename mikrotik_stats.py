@@ -33,7 +33,7 @@ def str_escape(string):
 def get_basic_info(sess):
     ret = {
         'tags': {
-            'description':
+            'model':
             str_escape(sess.get('sysDescr.0').value),
             'hostname':
             str_escape(sess.get('sysName.0').value),
