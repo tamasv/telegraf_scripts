@@ -35,7 +35,7 @@ def get_basic_info(sess):
         'tags': {
             'description':
             str_escape(sess.get('sysDescr.0').value),
-            'name':
+            'hostname':
             str_escape(sess.get('sysName.0').value),
             'location':
             str_escape(sess.get('sysLocation.0').value),
