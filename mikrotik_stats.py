@@ -7,6 +7,14 @@
 #
 import argparse
 from easysnmp import Session
+uplinks = []
+
+
+def is_uplink(descr):
+    global uplinks
+    if uplinks is not None and descr in uplinks:
+        return True
+    return False
 
 
 def parse_int(string):
@@ -116,6 +124,7 @@ def get_interfaces(sess, basic_tags):
                 'interface_type': int(iftypes[ifindex].value),
                 'speed': int(ifspeeds[ifindex].value),
                 'mtu': int(ifmtu[ifindex].value),
+                'uplink': is_uplink(ifdescr[ifindex].value)
             },
             'fields': {
                 'adminstatus': ifadminstatus[ifindex].value,
@@ -466,7 +475,14 @@ def main():
                         type=str,
                         help="Auth password v3",
                         choices=['DES', 'AES'])
+    parser.add_argument("-uplink",
+                        "--uplink_port",
+                        type=str,
+                        help="Tag the matching port with uplink tag",
+                        nargs="+")
     args = parser.parse_args()
+    global uplinks
+    uplinks = args.uplink_port
     if args.version == 2:
         snmp_sess = Session(hostname=args.ip,
                             community=args.community,
