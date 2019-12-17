@@ -44,6 +44,7 @@ def main():
         client.pop('lastbackup')
         client.pop('lastbackup_image')
         client.pop('processes')
+        client.pop('lastseen')
         client.pop('status')
         now = datetime.now()
         lastbackup_elapsed = (
