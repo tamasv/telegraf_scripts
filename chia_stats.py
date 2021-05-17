@@ -6,6 +6,16 @@ import urllib3
 urllib3.disable_warnings()
 
 
+def str_escape(string):
+    if string is None:
+        return ""
+    ret = string.replace(" ", "\\ ")
+    ret = ret.replace(",", "\\,")
+#    ret = ret.replace(".", "\\.")
+    ret = '"{}"'.format(ret)
+    return ret
+
+
 class Endpoint():
     def __init__(self, chiacert, chiakey, walletcert, walletkey, address):
         self.chiakey = chiakey
@@ -30,17 +40,29 @@ class Endpoint():
 
 
 def plots(e, extra_tags):
-    plot_tags = ['plot-seed', 'plot_public_key', 'pool_public_key', 'size']
-    plot_values = ['filename', 'filesize', 'time_modified']
+    plot_tags_escape = ['plot-seed', 'plot_public_key', 'pool_public_key']
+    plot_tags = ['size']
+    plot_values = ['file_size', 'time_modified']
+    plot_values_escape = ['filename']
     plots = e.get_data('get_plots', 8560)
     for plot in plots['plots']:
         tags = ",".join(
             [f"{k}={v}" for k, v in plot.items() if k in plot_tags])
+        tags += ","
+        tags += ",".join([
+            f"{k}={str_escape(v)}" for k, v in plot.items()
+            if k in plot_tags_escape
+        ])
         if len(extra_tags):
             tags += ","
             tags += ",".join([f"{k}={v}" for k, v in extra_tags.items()])
         values = ",".join(
             [f"{k}={v}" for k, v in plot.items() if k in plot_values])
+        values += ","
+        values += ",".join([
+            f"{k}={str_escape(v)}" for k, v in plot.items()
+            if k in plot_values_escape
+        ])
         print("chia_plots,{} {}".format(tags, values))
 
 
