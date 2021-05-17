@@ -3,7 +3,10 @@
 import argparse
 import requests
 import urllib3
+
 urllib3.disable_warnings()
+
+SECONDS_PER_BLOCK = (24 * 3600) / 4608
 
 
 def str_escape(string):
@@ -11,9 +14,15 @@ def str_escape(string):
         return ""
     ret = string.replace(" ", "\\ ")
     ret = ret.replace(",", "\\,")
-#    ret = ret.replace(".", "\\.")
+    #    ret = ret.replace(".", "\\.")
     ret = '"{}"'.format(ret)
     return ret
+
+
+def float_convert(f):
+    if f == "null" or f is None:
+        return 0.0
+    return float(f)
 
 
 class Endpoint():
@@ -53,7 +62,7 @@ def plots(e, extra_tags):
             f"{k}={str_escape(v)}" for k, v in plot.items()
             if k in plot_tags_escape
         ])
-        if len(extra_tags):
+        if len(extra_tags) > 0:
             tags += ","
             tags += ",".join([f"{k}={v}" for k, v in extra_tags.items()])
         values = ",".join(
@@ -64,6 +73,7 @@ def plots(e, extra_tags):
             if k in plot_values_escape
         ])
         print("chia_plots,{} {}".format(tags, values))
+    return plots
 
 
 def network_info(e):
@@ -83,12 +93,67 @@ def wallet_balance(e, extra_tags):
     ]
     tags = ",".join(
         [f"{k}={v}" for k, v in balance.items() if k in balance_tags])
-    if len(extra_tags):
+    if len(extra_tags) > 0:
         tags += ","
         tags += ",".join([f"{k}={v}" for k, v in extra_tags.items()])
     values = ",".join(
         [f"{k}={float(v)}" for k, v in balance.items() if k in balance_values])
     print("chia_wallet,{} {}".format(tags, values))
+
+
+def estimated_time(e, plots, space, extra_tags):
+    tags = ""
+    total_plot_size = sum([x['file_size'] for x in plots['plots']])
+    info = e.get_data('get_blockchain_state', 8555)['blockchain_state']
+    if info['peak']['height'] < 600:
+        avg_block_time = SECONDS_PER_BLOCK
+    header_hash = info['peak']['prev_hash']
+    curr = None
+    past_curr = None
+    while curr is None or curr['timestamp'] is None:
+        curr = e.get_data('get_block_record',
+                          8555,
+                          data='{"header_hash": "' + header_hash +
+                          '"}')['block_record']
+        header_hash = curr['prev_hash']
+    past_curr = e.get_data('get_block_record_by_height',
+                           8555,
+                           data='{"height": ' +
+                           str(int(curr['height']) - 500) +
+                           '}')['block_record']
+    while past_curr is None or past_curr['timestamp'] is None:
+        past_curr = e.get_data('get_block_record_by_height',
+                               8555,
+                               data='{"height": ' +
+                               str(int(past_curr['height']) - 500) +
+                               '}')['block_record']
+    if curr['timestamp'] is not None and not (past_curr['timestamp'] is None):
+        avg_block_time = (curr['timestamp'] - past_curr['timestamp']) / (
+            curr['height'] - past_curr['height'])
+    else:
+        avg_block_time = SECONDS_PER_BLOCK
+    if space is not None and plots is not None:
+        proportion = total_plot_size / space if space else -1
+        minutes = ((avg_block_time / 60) / proportion) if proportion else -1
+    if len(extra_tags) > 0:
+        tags += ","
+        tags += ",".join([f"{k}={v}" for k, v in extra_tags.items()])
+    print("chia_wallet,{} time_to_win={}".format(tags, minutes))
+
+
+def blockchain_state(e, extra_tags):
+    info = e.get_data('get_blockchain_state', 8555)['blockchain_state']
+    info_values = ['height', 'required_iters', 'signage_point_index', 'weight']
+    values = ",".join([
+        f"{k}={float(v)}" for k, v in info['peak'].items() if k in info_values
+    ])
+    values += f",fees={float_convert(info['peak']['fees'])}"
+    values += f",difficulty={info['difficulty']}"
+    values += f",mempool_size={info['mempool_size']}"
+    values += f",space={float(info['space'])}"
+    tags = "example=tag"
+    print("blockchain_state,{} {}".format(tags, values))
+    return info['space'], info['difficulty']
 
 
 def main():
@@ -109,8 +174,12 @@ def main():
     network_name, network_prefix = network_info(e)
     tags['network_name'] = network_name
     tags['network_prefix'] = network_prefix
-    plots(e, tags)
+    space, difficulty = blockchain_state(e, tags)
+    tags['network_space'] = space
+    tags['network_difficulty'] = difficulty
+    plot = plots(e, tags)
     wallet_balance(e, tags)
+    estimated_time(e, plot, space, tags)
 
 
 if __name__ == "__main__":
