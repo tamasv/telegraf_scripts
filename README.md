@@ -86,4 +86,28 @@ mikrotik_interfaces,ifindex=4,description=ether4,interface_type=6,speed=10000000
 
 
 ```
+## chia_stats.py
+
+### Deps
+```
+
+pip install requests
+pip install argparse
+
+```
+
+### Configuration
+```toml
+
+[[inputs.exec]]
+ commands=["python3 /opt/telegraf/scripts/chia_stats.py --cert $PATH_TO_CERT --key $PATH_TO_KEY --walletcert $PATH_TO_WALLETCERT --walletkey $PATH_TO_WALLETKEY localhost"]
+ timeout = "10s"
+data_format = "influx"
+
+```
+
+### Example
+```
+
+```
 
