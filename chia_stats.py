@@ -136,7 +136,6 @@ def estimated_time(e, plots, space, extra_tags):
         proportion = total_plot_size / space if space else -1
         minutes = ((avg_block_time / 60) / proportion) if proportion else -1
     if len(extra_tags) > 0:
-        tags += ","
         tags += ",".join([f"{k}={v}" for k, v in extra_tags.items()])
     print("chia_wallet,{} time_to_win={}".format(tags, minutes))
 
