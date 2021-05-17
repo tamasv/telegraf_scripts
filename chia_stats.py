@@ -137,7 +137,7 @@ def estimated_time(e, plots, space, extra_tags):
         minutes = ((avg_block_time / 60) / proportion) if proportion else -1
     if len(extra_tags) > 0:
         tags += ",".join([f"{k}={v}" for k, v in extra_tags.items()])
-    print("chia_wallet,{} time_to_win={}".format(tags, minutes))
+    print("chia_win,{} time_to_win={}".format(tags, minutes))
 
 
 def blockchain_state(e, extra_tags):
@@ -151,7 +151,7 @@ def blockchain_state(e, extra_tags):
     values += f",mempool_size={info['mempool_size']}"
     values += f",space={float(info['space'])}"
     tags = "example=tag"
-    print("blockchain_state,{} {}".format(tags, values))
+    print("chia_blockstate,{} {}".format(tags, values))
     return info['space'], info['difficulty']
 
 
