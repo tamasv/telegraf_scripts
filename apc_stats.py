@@ -6,6 +6,8 @@ from apcaccess import status as apc
 
 
 def str_escape(string):
+    if string is None:
+        return ""
     ret = string.replace(" ", "\\ ")
     ret = ret.replace(",", "\\,")
     ret = '"{}"'.format(ret)
