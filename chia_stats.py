@@ -152,6 +152,8 @@ def blockchain_state(e, extra_tags):
     values += f",space={float(info['space'])}"
     values += f",synced={info['sync']['synced']}"
     values += f",sync_mode={info['sync']['synced']}"
+    values += f",sync_tip_height={float(info['sync']['sync_tip_height'])}"
+    values += f",sync_progress_height={float(info['sync']['sync_progress_height'])}"
     tags = "example=tag"
     print("chia_blockstate,{} {}".format(tags, values))
     return info['space'], info['difficulty']
