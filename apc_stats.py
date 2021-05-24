@@ -33,8 +33,8 @@ results = {
         'ITEMP': float(ups.get('ITEMP', 0.0)),
     },
     'tags': {
-        'serial': str_escape(ups.get('SERIALNO', None)),
-        'ups_alias': str_escape(ups.get('UPSNAME', None)),
+        'serial': str_escape(ups.get('SERIALNO', "0000")),
+        'ups_alias': str_escape(ups.get('UPSNAME', "Not Connected")),
     }
 }
 print("{},{} {}".format(
