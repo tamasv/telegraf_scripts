@@ -53,6 +53,8 @@ def plots(e, extra_tags):
     plot_tags = ['size']
     plot_values = ['file_size', 'time_modified']
     plot_values_escape = ['filename']
+    unique_plot_size = 0.0
+    unique_plot_count = 0
     plots = e.get_data('get_plots', 8560)
     for plot in plots['plots']:
         tags = ",".join(
@@ -73,6 +75,10 @@ def plots(e, extra_tags):
             if k in plot_values_escape
         ])
         print("chia_plots,{} {}".format(tags, values))
+    tags = ",".join([f"{k}={v}" for k, v in extra_tags.items()])
+    values = (f"unique_plot_count={float(unique_plot_count)},"
+              f"unique_plot_size={float(unique_plot_size)}")
+    print("chia_plots_summary,{} {}".format(tags, values))
     return plots
 
 
@@ -153,7 +159,8 @@ def blockchain_state(e, extra_tags):
     values += f",synced={info['sync']['synced']}"
     values += f",sync_mode={info['sync']['synced']}"
     values += f",sync_tip_height={float(info['sync']['sync_tip_height'])}"
-    values += f",sync_progress_height={float(info['sync']['sync_progress_height'])}"
+    values += (f",sync_progress_height="
+               f"{float(info['sync']['sync_progress_height'])}")
     tags = "example=tag"
     print("chia_blockstate,{} {}".format(tags, values))
     return info['space'], info['difficulty']
@@ -178,8 +185,8 @@ def main():
     tags['network_name'] = network_name
     tags['network_prefix'] = network_prefix
     space, difficulty = blockchain_state(e, tags)
-    tags['network_space'] = space
-    tags['network_difficulty'] = difficulty
+    # tags['network_space'] = space
+    # tags['network_difficulty'] = difficulty
     plot = plots(e, tags)
     wallet_balance(e, tags)
     estimated_time(e, plot, space, tags)
