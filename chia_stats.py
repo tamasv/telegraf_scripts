@@ -3,10 +3,19 @@
 import argparse
 import requests
 import urllib3
-
+from os import listdir
+from os.path import isfile, join
+import re
+import datetime
 urllib3.disable_warnings()
 
 SECONDS_PER_BLOCK = (24 * 3600) / 4608
+HARVESTER_REGEX = re.compile(
+    r"^([\d\-T\:\.]*)\s+harvester\s+chia.harvester.harvester:\s+"
+    r"INFO\s+([\d]*) plots were eligible for farming ([a-z\d]*)"
+    r".*Found ([\d]*) proofs.\s+Time: ([\d\.]*)\s+s.\s+Total\s+"
+    r"([\d]*)\s+plots\s*$")
+HARVESTER_LAST_TS_FILENAME = 'telegraf_harvester_last.ts'
 
 
 def str_escape(string):
@@ -25,13 +34,64 @@ def float_convert(f):
     return float(f)
 
 
+class LogLine():
+    def __init__(self, match):
+        self.ts = datetime.datetime.fromisoformat(match[1])
+        self.eligible_plots = int(match[2])
+        self.challange = str(match[3])
+        self.proofs = int(match[4])
+        self.time_spent = float(match[5])
+        self.total_plots = int(match[6])
+
+
+class HarvesterLogs():
+    def __init__(self, harvester_logs, last_ts, logsdir):
+        self.harvester_logs = harvester_logs
+        self.last_ts = last_ts
+        self.loglines = []
+        self.logsdir = logsdir
+        self._process_logs()
+
+    def _process_logs(self):
+        for harvester_log in self.harvester_logs:
+            with open(harvester_log) as f:
+                lines = f.read()
+                for line in lines.split("\n"):
+                    match = re.match(HARVESTER_REGEX, line)
+                    if match:
+                        lline = LogLine(match)
+                        if lline.ts > self.last_ts and (
+                                lline.eligible_plots > 0 or lline.proofs > 0):
+                            self.loglines.append(lline)
+        # place ts
+        sorted(self.loglines, key=lambda x: x.ts, reverse=1)
+        if len(self.loglines) > 0:
+            with open(join(self.logsdir, HARVESTER_LAST_TS_FILENAME),
+                      'w+') as f:
+                f.write(self.loglines[-1].ts.isoformat())
+
+
 class Endpoint():
-    def __init__(self, chiacert, chiakey, walletcert, walletkey, address):
+    def __init__(self, chiacert, chiakey, walletcert, walletkey, address,
+                 logsdir):
         self.chiakey = chiakey
         self.chiacert = chiacert
         self.walletkey = walletkey
         self.walletcert = walletcert
         self.address = address
+        self.logsdir = logsdir
+        self.last_ts = self._get_last_ts()
+
+    def _get_last_ts(self):
+        if isfile(join(self.logsdir, HARVESTER_LAST_TS_FILENAME)):
+            with open(join(self.logsdir, HARVESTER_LAST_TS_FILENAME),
+                      'r') as f:
+                try:
+                    return datetime.datetime.fromisoformat(f.read())
+                except Exception:
+                    return datetime.datetime.min
+        else:
+            return datetime.datetime.min
 
     def get_data(self, endpoint, port, data="{}", cert_type=None):
         url = f"https://{self.address}:{port}/{endpoint}"
@@ -46,6 +106,14 @@ class Endpoint():
                               data=data,
                               verify=False)
         return r.json()
+
+    def get_harvester_logfiles(self):
+        harvester_logs = [
+            join(self.logsdir, f) for f in listdir(self.logsdir)
+            if isfile(join(self.logsdir, f))
+        ]
+        harvester_logs = filter(lambda x: 'harvester.log' in x, harvester_logs)
+        return harvester_logs
 
 
 def plots(e, extra_tags):
@@ -168,6 +236,24 @@ def blockchain_state(e, extra_tags):
     return info['space'], info['difficulty']
 
 
+def logs(e, extra_tags):
+    harvester_values = [
+        'eligible_plots', 'time_spent', 'proofs', 'total_plots'
+    ]
+    harvester_logs = e.get_harvester_logfiles()
+    logs = HarvesterLogs(harvester_logs, e.last_ts, e.logsdir)
+    for log in logs.loglines:
+        tags = ""
+        if len(extra_tags) > 0:
+            tags = ",".join([f"{k}={v}" for k, v in extra_tags.items()])
+        values = ",".join([
+            f"{k}={v}" for k, v in log.__dict__.items()
+            if k in harvester_values
+        ])
+        print("chia_harvester,{} {} {:.0f}".format(
+            tags, values, datetime.datetime.timestamp(log.ts)*10**9))
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Chia stats to influx expoter")
@@ -175,13 +261,15 @@ def main():
     parser.add_argument('--key', help="Chia key")
     parser.add_argument('--walletcert', help="Chia wallet cert")
     parser.add_argument('--walletkey', help="Chia wallet key")
+    parser.add_argument('--logsdir', help="Chia log dir for harvester logs")
     parser.add_argument('address', help="Ip address of the rest api")
     args = parser.parse_args()
     e = Endpoint(chiacert=args.cert,
                  chiakey=args.key,
                  walletcert=args.walletcert,
                  walletkey=args.walletkey,
-                 address=args.address)
+                 address=args.address,
+                 logsdir=args.logsdir)
     tags = {}
     network_name, network_prefix = network_info(e)
     tags['network_name'] = network_name
@@ -192,6 +280,7 @@ def main():
     plot = plots(e, tags)
     wallet_balance(e, tags)
     estimated_time(e, plot, space, tags)
+    logs(e, tags)
 
 
 if __name__ == "__main__":
