@@ -75,6 +75,8 @@ def plots(e, extra_tags):
             if k in plot_values_escape
         ])
         print("chia_plots,{} {}".format(tags, values))
+        unique_plot_size += plot['file_size']
+        unique_plot_count += 1
     tags = ",".join([f"{k}={v}" for k, v in extra_tags.items()])
     values = (f"unique_plot_count={float(unique_plot_count)},"
               f"unique_plot_size={float(unique_plot_size)}")
