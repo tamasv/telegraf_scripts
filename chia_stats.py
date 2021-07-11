@@ -21,9 +21,9 @@ HARVESTER_LAST_TS_FILENAME = 'telegraf_harvester_last.ts'
 
 def str_escape(string):
     if string is None:
-        return ""
+        return '""'
     if string == "null":
-        return ""
+        return '""'
     ret = string.replace(" ", "\\ ")
     ret = ret.replace(",", "\\,")
     #    ret = ret.replace(".", "\\.")
