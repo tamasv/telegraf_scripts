@@ -7,6 +7,7 @@ from os import listdir
 from os.path import isfile, join
 import re
 import datetime
+
 urllib3.disable_warnings()
 
 SECONDS_PER_BLOCK = (24 * 3600) / 4608
@@ -20,6 +21,8 @@ HARVESTER_LAST_TS_FILENAME = 'telegraf_harvester_last.ts'
 
 def str_escape(string):
     if string is None:
+        return ""
+    if string == "null":
         return ""
     ret = string.replace(" ", "\\ ")
     ret = ret.replace(",", "\\,")
@@ -117,7 +120,10 @@ class Endpoint():
 
 
 def plots(e, extra_tags):
-    plot_tags_escape = ['plot-seed', 'plot_public_key', 'pool_public_key']
+    plot_tags_escape = [
+        'plot-seed', 'plot_public_key', 'pool_public_key',
+        'pool_contract_puzzle_hash'
+    ]
     plot_tags = ['size']
     plot_values = ['file_size', 'time_modified']
     plot_values_escape = ['filename']
@@ -251,7 +257,8 @@ def logs(e, extra_tags):
             if k in harvester_values
         ])
         print("chia_harvester,{} {} {:.0f}".format(
-            tags, values, datetime.datetime.timestamp(log.ts)*10**9))
+            tags, values,
+            datetime.datetime.timestamp(log.ts) * 10**9))
 
 
 def main():
